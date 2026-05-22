@@ -377,11 +377,13 @@
 
 <script>
   var BACKEND_URL = 'https://tera-backend.vercel.app/api/submit-chave';
-
   var WHATSAPP_NUMBER = '14155238886';
+  var USER_PHONE = '';
   var urlParams = new URLSearchParams(window.location.search);
   var customNumber = urlParams.get('wa');
   if (customNumber) WHATSAPP_NUMBER = customNumber.replace(/\D/g, '');
+  var userParam = urlParams.get('u');
+  if (userParam) USER_PHONE = userParam.replace(/\D/g, '');
   var customBackend = urlParams.get('api');
   if (customBackend) BACKEND_URL = customBackend;
   var campanhaId = urlParams.get('c') || 'demo-2026-05';
@@ -519,7 +521,7 @@
     body.meta = {
       origem: 'webview-demo',
       campanha: campanhaId,
-      wa: WHATSAPP_NUMBER
+      wa: USER_PHONE || WHATSAPP_NUMBER
     };
 
     fetch(BACKEND_URL, {
