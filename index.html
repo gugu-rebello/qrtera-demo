@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<title>tera · ler nota fiscal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #0a0a0a;
+    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container {
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 24px 20px 40px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+  .logo {
+    font-size: 32px;
+    font-weight: 800;
+    color: #FF6600;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+  .secure {
+    font-size: 12px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .secure-icon {
+    width: 12px;
+    height: 12px;
+    display: inline-block;
+    border: 1.5px solid #888;
+    border-radius: 2px;
+    position: relative;
+  }
+  .secure-icon::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 2px;
+    width: 6px;
+    height: 6px;
+    border: 1.5px solid #888;
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+  }
+  .campaign-label {
+    font-size: 13px;
+    color: #aaa;
+    margin-bottom: 4px;
+  }
+  .campaign-name {
+    font-size: 17px;
+    font-weight: 500;
+    margin-bottom: 24px;
+  }
+  .scanner-wrapper {
+    position: relative;
+    background: #1a1a1a;
+    border-radius: 16px;
+    aspect-ratio: 1;
+    overflow: hidden;
+    margin-bottom: 16px;
+    border: 1px dashed #FF6600;
+  }
+  #reader {
+    width: 100%;
+    height: 100%;
+  }
+  #reader video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 14px;
+  }
+  .scanner-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    color: #888;
+    z-index: 1;
+  }
+  .scanner-placeholder.hidden { display: none; }
+  .qr-icon {
+    width: 64px;
+    height: 64px;
+    border: 3px solid #555;
+    border-radius: 8px;
+    position: relative;
+    margin-bottom: 16px;
+  }
+  .qr-icon::before, .qr-icon::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border: 3px solid #555;
+  }
+  .qr-icon::before {
+    top: 6px;
+    left: 6px;
+    border-right: none;
+    border-bottom: none;
+  }
+  .qr-icon::after {
+    bottom: 6px;
+    right: 6px;
+    border-left: none;
+    border-top: none;
+  }
+  .scanner-text {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .corner {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-color: #FF6600;
+    border-style: solid;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .corner.tl { top: 16px; left: 16px; border-width: 2px 0 0 2px; }
+  .corner.tr { top: 16px; right: 16px; border-width: 2px 2px 0 0; }
+  .corner.bl { bottom: 16px; left: 16px; border-width: 0 0 2px 2px; }
+  .corner.br { bottom: 16px; right: 16px; border-width: 0 2px 2px 0; }
+  .hint {
+    font-size: 12px;
+    color: #777;
+    text-align: center;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 0.5px;
+    background: #333;
+  }
+  .divider-text {
+    font-size: 11px;
+    color: #555;
+    text-transform: lowercase;
+  }
+  .btn {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 0.5px solid #444;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.2s, border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active {
+    background: #1a1a1a;
+    border-color: #FF6600;
+  }
+  .btn-primary {
+    background: #FF6600;
+    border-color: #FF6600;
+    margin-top: 12px;
+  }
+  .btn-primary:active {
+    background: #cc5200;
+    border-color: #cc5200;
+  }
+  .keyboard-icon {
+    width: 20px;
+    height: 14px;
+    border: 1.5px solid currentColor;
+    border-radius: 3px;
+    position: relative;
+  }
+  .keyboard-icon::before {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 3px;
+    right: 3px;
+    height: 1.5px;
+    background: currentColor;
+  }
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal.open { display: flex; }
+  .modal-content {
+    background: #1a1a1a;
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px 32px;
+    width: 100%;
+    max-width: 420px;
+    border: 0.5px solid #333;
+  }
+  .modal-title {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .modal-subtitle {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .key-input {
+    width: 100%;
+    padding: 14px;
+    background: #0a0a0a;
+    border: 0.5px solid #444;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 16px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+  }
+  .key-input:focus {
+    outline: none;
+    border-color: #FF6600;
+  }
+  .key-counter {
+    font-size: 11px;
+    color: #666;
+    text-align: right;
+    margin-bottom: 16px;
+  }
+  .key-counter.valid { color: #4ade80; }
+  .result {
+    position: fixed;
+    inset: 0;
+    background: #0a0a0a;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 24px;
+  }
+  .result.open { display: flex; }
+  .result-card {
+    text-align: center;
+    max-width: 320px;
+  }
+  .result-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: 500;
+  }
+  .result-icon.success {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+  }
+  .result-icon.error {
+    background: rgba(248, 113, 113, 0.15);
+    color: #f87171;
+  }
+  .result-title {
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+  .result-msg {
+    font-size: 14px;
+    color: #aaa;
+    line-height: 1.6;
+    margin-bottom: 24px;
+  }
+  .key-shown {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: #FF6600;
+    background: rgba(255, 102, 0, 0.1);
+    padding: 8px 12px;
+    border-radius: 6px;
+    word-break: break-all;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  .footer-brand {
+    margin-top: auto;
+    padding-top: 32px;
+    text-align: center;
+  }
+  .footer-tag {
+    font-size: 11px;
+    color: #444;
+    margin-top: 8px;
+  }
+  .scanning .scanner-placeholder { display: none; }
+  #reader__dashboard_section_csr button,
+  #reader__dashboard_section_swaplink,
+  #reader__header_message,
+  #reader__dashboard_section_fsr {
+    display: none !important;
+  }
+  #reader__scan_region {
+    background: transparent !important;
+  }
+  #reader__scan_region img {
+    display: none !important;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <div class="logo">tera</div>
+    <div class="secure">
+      <span class="secure-icon"></span>
+      seguro
+    </div>
+  </div>
+
+  <div class="campaign-label">campanha</div>
+  <div class="campaign-name">promoção demo Tera</div>
+
+  <div class="scanner-wrapper" id="scannerWrapper">
+    <div id="reader"></div>
+    <div class="scanner-placeholder" id="placeholder">
+      <div class="qr-icon"></div>
+      <div class="scanner-text">aponte para o QR code<br>da nota fiscal</div>
+    </div>
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+  </div>
+
+  <div class="hint">detectando 44 dígitos automaticamente</div>
+
+  <button class="btn btn-primary" id="startBtn">iniciar câmera</button>
+
+  <div style="height: 16px;"></div>
+
+  <div class="divider"><span class="divider-text">ou</span></div>
+
+  <button class="btn" id="manualBtn">
+    <span class="keyboard-icon"></span>
+    digitar os 44 dígitos
+  </button>
+
+  <div class="footer-brand">
+    <div style="font-size: 18px; font-weight: 800; color: #FF6600; letter-spacing: -0.5px;">tera</div>
+    <div class="footer-tag">o cookie offline do Brasil</div>
+  </div>
+
+</div>
+
+<div class="modal" id="manualModal">
+  <div class="modal-content">
+    <div class="modal-title">digitar chave de acesso</div>
+    <div class="modal-subtitle">os 44 dígitos que ficam logo abaixo do QR code, na parte de baixo da nota</div>
+    <input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="44" class="key-input" id="keyInput" placeholder="0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000" autocomplete="off">
+    <div class="key-counter" id="keyCounter">0 / 44</div>
+    <button class="btn btn-primary" id="submitKeyBtn">enviar</button>
+    <div style="height: 8px;"></div>
+    <button class="btn" id="cancelKeyBtn">cancelar</button>
+  </div>
+</div>
+
+<div class="result" id="resultScreen">
+  <div class="result-card">
+    <div class="result-icon" id="resultIcon"></div>
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-msg" id="resultMsg"></div>
+    <div class="key-shown" id="keyShown" style="display: none;"></div>
+    <button class="btn btn-primary" id="closeResultBtn">ler outra nota</button>
+  </div>
+</div>
+
+<script>
+  var scanner = null;
+  var isScanning = false;
+
+  var startBtn = document.getElementById('startBtn');
+  var manualBtn = document.getElementById('manualBtn');
+  var scannerWrapper = document.getElementById('scannerWrapper');
+  var placeholder = document.getElementById('placeholder');
+  var manualModal = document.getElementById('manualModal');
+  var keyInput = document.getElementById('keyInput');
+  var keyCounter = document.getElementById('keyCounter');
+  var submitKeyBtn = document.getElementById('submitKeyBtn');
+  var cancelKeyBtn = document.getElementById('cancelKeyBtn');
+  var resultScreen = document.getElementById('resultScreen');
+  var resultIcon = document.getElementById('resultIcon');
+  var resultTitle = document.getElementById('resultTitle');
+  var resultMsg = document.getElementById('resultMsg');
+  var keyShown = document.getElementById('keyShown');
+  var closeResultBtn = document.getElementById('closeResultBtn');
+
+  function isValidChaveAcesso(str) {
+    var clean = str.replace(/\D/g, '');
+    if (clean.length !== 44) return false;
+    var uf = clean.substring(0, 2);
+    var ufNum = parseInt(uf, 10);
+    if (ufNum < 11 || ufNum > 53) return false;
+    var modelo = clean.substring(20, 22);
+    if (modelo !== '55' && modelo !== '65') return false;
+    return validateDV(clean);
+  }
+
+  function validateDV(chave) {
+    var sum = 0;
+    var weight = 2;
+    for (var i = 42; i >= 0; i--) {
+      sum += parseInt(chave.charAt(i), 10) * weight;
+      weight++;
+      if (weight > 9) weight = 2;
+    }
+    var remainder = sum % 11;
+    var dv = (remainder < 2) ? 0 : 11 - remainder;
+    return dv === parseInt(chave.charAt(43), 10);
+  }
+
+  function extractChaveFromQR(decodedText) {
+    var match = decodedText.match(/\d{44}/);
+    if (match) return match[0];
+    var url = decodedText;
+    var paramMatch = url.match(/[?&]p?=?(\d{44})/i);
+    if (paramMatch) return paramMatch[1];
+    return null;
+  }
+
+  function showResult(success, chave) {
+    if (success) {
+      resultIcon.className = 'result-icon success';
+      resultIcon.textContent = '✓';
+      resultTitle.textContent = 'nota recebida';
+      resultMsg.textContent = 'aguarde a leitura e retorno em alguns minutos com a validação da sua participação';
+      keyShown.style.display = 'block';
+      keyShown.textContent = chave;
+    } else {
+      resultIcon.className = 'result-icon error';
+      resultIcon.textContent = '!';
+      resultTitle.textContent = 'chave inválida';
+      resultMsg.textContent = 'não conseguimos validar esse código. tente ler novamente ou digite os 44 dígitos';
+      keyShown.style.display = 'none';
+    }
+    resultScreen.classList.add('open');
+    if (success && window.navigator.vibrate) {
+      window.navigator.vibrate(100);
+    }
+  }
+
+  function onScanSuccess(decodedText) {
+    var chave = extractChaveFromQR(decodedText);
+    if (chave && isValidChaveAcesso(chave)) {
+      stopScanner();
+      showResult(true, chave);
+    }
+  }
+
+  function onScanError() {}
+
+  function startScanner() {
+    if (isScanning) return;
+    if (!scanner) {
+      scanner = new Html5Qrcode("reader", { verbose: false });
+    }
+    var config = {
+      fps: 10,
+      qrbox: function(viewfinderWidth, viewfinderHeight) {
+        var minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+        var size = Math.floor(minEdge * 0.7);
+        return { width: size, height: size };
+      },
+      aspectRatio: 1.0,
+      disableFlip: false
+    };
+    scanner.start(
+      { facingMode: "environment" },
+      config,
+      onScanSuccess,
+      onScanError
+    ).then(function() {
+      isScanning = true;
+      scannerWrapper.classList.add('scanning');
+      placeholder.classList.add('hidden');
+      startBtn.style.display = 'none';
+    }).catch(function(err) {
+      console.error("Erro ao iniciar câmera:", err);
+      alert("não consegui acessar a câmera. verifique se permitiu o acesso e que está em https.");
+    });
+  }
+
+  function stopScanner() {
+    if (!isScanning || !scanner) return;
+    scanner.stop().then(function() {
+      isScanning = false;
+      scannerWrapper.classList.remove('scanning');
+      placeholder.classList.remove('hidden');
+      startBtn.style.display = '';
+    }).catch(function() {
+      isScanning = false;
+    });
+  }
+
+  startBtn.addEventListener('click', startScanner);
+
+  manualBtn.addEventListener('click', function() {
+    manualModal.classList.add('open');
+    setTimeout(function() { keyInput.focus(); }, 100);
+  });
+
+  cancelKeyBtn.addEventListener('click', function() {
+    manualModal.classList.remove('open');
+    keyInput.value = '';
+    updateKeyCounter();
+  });
+
+  function updateKeyCounter() {
+    var len = keyInput.value.replace(/\D/g, '').length;
+    keyCounter.textContent = len + ' / 44';
+    if (len === 44) {
+      keyCounter.classList.add('valid');
+    } else {
+      keyCounter.classList.remove('valid');
+    }
+  }
+
+  keyInput.addEventListener('input', function(e) {
+    var clean = e.target.value.replace(/\D/g, '').substring(0, 44);
+    e.target.value = clean;
+    updateKeyCounter();
+  });
+
+  submitKeyBtn.addEventListener('click', function() {
+    var chave = keyInput.value.replace(/\D/g, '');
+    if (chave.length !== 44) {
+      keyInput.style.borderColor = '#f87171';
+      setTimeout(function() { keyInput.style.borderColor = ''; }, 1500);
+      return;
+    }
+    var valid = isValidChaveAcesso(chave);
+    manualModal.classList.remove('open');
+    showResult(valid, chave);
+    if (valid) {
+      keyInput.value = '';
+      updateKeyCounter();
+    }
+  });
+
+  closeResultBtn.addEventListener('click', function() {
+    resultScreen.classList.remove('open');
+    if (!isScanning) {
+      startScanner();
+    }
+  });
+</script>
+
+</body>
+</html>
