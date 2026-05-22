@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0a0a0a">
-<title>tera · ler nota fiscal</title>
+<title>Tera · ler nota fiscal</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -256,14 +256,16 @@
   .result-msg { font-size: 14px; color: #aaa; line-height: 1.6; margin-bottom: 20px; }
   .key-shown {
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    font-size: 11px;
+    font-size: 13px;
     color: #FF6600;
     background: rgba(255, 102, 0, 0.1);
-    padding: 8px 12px;
+    padding: 12px 14px;
     border-radius: 6px;
-    word-break: break-all;
+    word-spacing: 2px;
     margin-bottom: 20px;
-    line-height: 1.5;
+    line-height: 1.6;
+    text-align: center;
+    letter-spacing: 0.5px;
   }
   .countdown { font-size: 13px; color: #888; margin-bottom: 16px; }
   .countdown-number { color: #FF6600; font-weight: 500; }
@@ -303,21 +305,21 @@
 <div class="container">
 
   <div class="header">
-    <div class="logo">tera</div>
+    <div class="logo">Tera</div>
     <div class="secure">
       <span class="secure-icon"></span>
       seguro
     </div>
   </div>
 
-  <div class="campaign-label">campanha</div>
-  <div class="campaign-name">promoção demo Tera</div>
+  <div class="campaign-label">Campanha</div>
+  <div class="campaign-name">Promoção demo - Leia o QrCode da sua Nota Fiscal para participar</div>
 
   <div class="scanner-wrapper" id="scannerWrapper">
     <div id="reader"></div>
     <div class="scanner-placeholder" id="placeholder">
       <div class="loading-spinner" id="spinner"></div>
-      <div class="scanner-text" id="placeholderText">iniciando câmera...</div>
+      <div class="scanner-text" id="placeholderText">Iniciando câmera...</div>
     </div>
     <div class="corner tl"></div>
     <div class="corner tr"></div>
@@ -325,21 +327,21 @@
     <div class="corner br"></div>
   </div>
 
-  <div class="hint">detectando 44 dígitos automaticamente</div>
+  <div class="hint">Detectando 44 dígitos automaticamente</div>
 
   <div class="error-banner" id="errorBanner"></div>
 
-  <button class="btn btn-primary btn-hidden" id="startBtn">iniciar câmera</button>
+  <button class="btn btn-primary btn-hidden" id="startBtn">Iniciar câmera</button>
 
   <div class="divider"><span class="divider-text">ou</span></div>
 
   <button class="btn" id="manualBtn">
     <span class="keyboard-icon"></span>
-    digitar os 44 dígitos
+    Digitar os 44 dígitos
   </button>
 
   <div class="footer-brand">
-    <div style="font-size: 18px; font-weight: 800; color: #FF6600; letter-spacing: -0.5px;">tera</div>
+    <div style="font-size: 18px; font-weight: 800; color: #FF6600; letter-spacing: -0.5px;">Tera</div>
     <div class="footer-tag">o cookie offline do Brasil</div>
   </div>
 
@@ -347,13 +349,26 @@
 
 <div class="modal" id="manualModal">
   <div class="modal-content">
-    <div class="modal-title">digitar chave de acesso</div>
-    <div class="modal-subtitle">os 44 dígitos que ficam logo abaixo do QR code, na parte de baixo da nota</div>
-    <input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="44" class="key-input" id="keyInput" placeholder="0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000" autocomplete="off">
+    <div class="modal-title">Digitar chave de acesso</div>
+    <div class="modal-subtitle">Os 44 dígitos que ficam logo abaixo do QR code, na parte de baixo da nota</div>
+    <input
+      type="tel"
+      inputmode="numeric"
+      pattern="[0-9]*"
+      maxlength="44"
+      class="key-input"
+      id="keyInput"
+      name="nfeKey"
+      placeholder="0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000"
+      autocomplete="one-time-code"
+      data-form-type="other"
+      data-lpignore="true"
+      data-1p-ignore="true"
+      aria-autocomplete="none">
     <div class="key-counter" id="keyCounter">0 / 44</div>
-    <button class="btn btn-primary" id="submitKeyBtn">enviar</button>
+    <button class="btn btn-primary" id="submitKeyBtn">Enviar</button>
     <div style="height: 8px;"></div>
-    <button class="btn" id="cancelKeyBtn">cancelar</button>
+    <button class="btn" id="cancelKeyBtn">Cancelar</button>
   </div>
 </div>
 
@@ -363,15 +378,37 @@
     <div class="result-title" id="resultTitle"></div>
     <div class="result-msg" id="resultMsg"></div>
     <div class="key-shown" id="keyShown" style="display: none;"></div>
-    <div class="countdown" id="countdown" style="display: none;">voltando ao WhatsApp em <span class="countdown-number" id="countdownNumber">3</span>...</div>
+    <div class="countdown" id="countdown" style="display: none;">Voltando ao WhatsApp em <span class="countdown-number" id="countdownNumber">3</span>...</div>
     <button class="btn btn-whatsapp" id="whatsappBtn" style="display: none;">
       <svg class="whatsapp-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
       </svg>
-      voltar ao WhatsApp
+      Voltar ao WhatsApp
     </button>
     <div style="height: 8px;"></div>
-    <button class="btn" id="closeResultBtn">ler outra nota</button>
+    <button class="btn" id="closeResultBtn">Ler outra nota</button>
+  </div>
+</div>
+
+<div class="result" id="expiredScreen" style="background: #0a0a0a;">
+  <div class="result-card">
+    <div class="result-icon error" style="background: rgba(255, 102, 0, 0.15); color: #FF6600;">⏱</div>
+    <div class="result-title">Sessão expirada</div>
+    <div class="result-msg">Este link de leitura expirou por segurança. Volte ao WhatsApp e envie uma nova mensagem para o bot gerar um link novo.</div>
+    <button class="btn btn-whatsapp" id="expiredWhatsappBtn">
+      <svg class="whatsapp-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+      </svg>
+      Voltar ao WhatsApp
+    </button>
+  </div>
+</div>
+
+<div class="result" id="closingScreen" style="background: #0a0a0a;">
+  <div class="result-card">
+    <div class="result-icon success">✓</div>
+    <div class="result-title">Tudo pronto</div>
+    <div class="result-msg">Você pode fechar esta aba e voltar para o WhatsApp.</div>
   </div>
 </div>
 
@@ -379,6 +416,7 @@
   var BACKEND_URL = 'https://tera-backend.vercel.app/api/submit-chave';
   var WHATSAPP_NUMBER = '14155238886';
   var USER_PHONE = '';
+  var SESSION_TTL_SECONDS = 10 * 60;
   var urlParams = new URLSearchParams(window.location.search);
   var customNumber = urlParams.get('wa');
   if (customNumber) WHATSAPP_NUMBER = customNumber.replace(/\D/g, '');
@@ -386,12 +424,18 @@
   if (userParam) USER_PHONE = userParam.replace(/\D/g, '');
   var customBackend = urlParams.get('api');
   if (customBackend) BACKEND_URL = customBackend;
+  var customTtl = parseInt(urlParams.get('ttl'), 10);
+  if (customTtl && customTtl > 0) SESSION_TTL_SECONDS = customTtl;
   var campanhaId = urlParams.get('c') || 'demo-2026-05';
+  var linkTimestamp = parseInt(urlParams.get('t'), 10);
+  if (!linkTimestamp || isNaN(linkTimestamp)) linkTimestamp = Date.now();
 
   var scanner = null;
   var isScanning = false;
   var countdownInterval = null;
   var isSubmitting = false;
+  var isExpired = false;
+  var expirationTimeout = null;
 
   var startBtn = document.getElementById('startBtn');
   var manualBtn = document.getElementById('manualBtn');
@@ -414,6 +458,9 @@
   var countdownNumber = document.getElementById('countdownNumber');
   var whatsappBtn = document.getElementById('whatsappBtn');
   var closeResultBtn = document.getElementById('closeResultBtn');
+  var expiredScreen = document.getElementById('expiredScreen');
+  var expiredWhatsappBtn = document.getElementById('expiredWhatsappBtn');
+  var closingScreen = document.getElementById('closingScreen');
 
   function isValidChaveAcesso(str) {
     var clean = str.replace(/\D/g, '');
@@ -447,9 +494,48 @@
     return null;
   }
 
+  function formatChaveAcesso(chave) {
+    var clean = String(chave).replace(/\D/g, '');
+    return clean.replace(/(.{4})/g, '$1 ').trim();
+  }
+
   function openWhatsApp() {
     var url = 'https://wa.me/' + WHATSAPP_NUMBER;
     window.location.href = url;
+    setTimeout(function() {
+      tryCloseTab();
+    }, 700);
+  }
+
+  function tryCloseTab() {
+    try { window.close(); } catch (e) {}
+    setTimeout(function() {
+      if (!document.hidden) {
+        resultScreen.classList.remove('open');
+        if (manualModal) manualModal.classList.remove('open');
+        if (expiredScreen) expiredScreen.classList.remove('open');
+        closingScreen.classList.add('open');
+      }
+    }, 400);
+  }
+
+  function showExpired() {
+    isExpired = true;
+    if (countdownInterval) clearInterval(countdownInterval);
+    stopScanner();
+    resultScreen.classList.remove('open');
+    manualModal.classList.remove('open');
+    expiredScreen.classList.add('open');
+  }
+
+  function setupExpiration() {
+    var elapsed = Math.floor((Date.now() - linkTimestamp) / 1000);
+    var remaining = SESSION_TTL_SECONDS - elapsed;
+    if (remaining <= 0) {
+      showExpired();
+      return;
+    }
+    expirationTimeout = setTimeout(showExpired, remaining * 1000);
   }
 
   function startCountdown() {
@@ -470,8 +556,8 @@
   function showLoadingResult() {
     resultIcon.className = 'result-icon loading';
     resultIcon.textContent = '';
-    resultTitle.textContent = 'enviando para a Tera...';
-    resultMsg.textContent = 'aguarde, estamos registrando sua nota';
+    resultTitle.textContent = 'Enviando para a Tera...';
+    resultMsg.textContent = 'Aguarde, estamos registrando sua nota';
     keyShown.style.display = 'none';
     countdown.style.display = 'none';
     whatsappBtn.style.display = 'none';
@@ -484,22 +570,22 @@
     if (success) {
       resultIcon.className = 'result-icon success';
       resultIcon.textContent = '✓';
-      resultTitle.textContent = 'nota recebida';
-      resultMsg.textContent = msg || 'aguarde alguns minutos para a validação da sua participação';
+      resultTitle.textContent = 'Nota recebida';
+      resultMsg.textContent = msg || 'Aguarde alguns minutos para a validação da sua participação';
       keyShown.style.display = 'block';
-      keyShown.textContent = chave;
+      keyShown.textContent = formatChaveAcesso(chave);
       whatsappBtn.style.display = 'flex';
-      closeResultBtn.textContent = 'ler outra nota';
+      closeResultBtn.textContent = 'Ler outra nota';
       startCountdown();
     } else {
       resultIcon.className = 'result-icon error';
       resultIcon.textContent = '!';
-      resultTitle.textContent = 'não foi dessa vez';
-      resultMsg.textContent = msg || 'não conseguimos registrar essa nota. tente novamente';
+      resultTitle.textContent = 'Não foi dessa vez';
+      resultMsg.textContent = msg || 'Não conseguimos registrar essa nota. Tente novamente';
       keyShown.style.display = 'none';
       countdown.style.display = 'none';
       whatsappBtn.style.display = 'none';
-      closeResultBtn.textContent = 'tentar novamente';
+      closeResultBtn.textContent = 'Tentar novamente';
     }
     resultScreen.classList.add('open');
     if (success && window.navigator.vibrate) {
@@ -537,23 +623,23 @@
       var data = result.data;
       if (result.ok && (data.status === 'RECEIVED' || data.status === 'DUPLICATED')) {
         var msg = data.status === 'DUPLICATED'
-          ? 'essa nota já foi registrada antes'
-          : 'aguarde alguns minutos para a validação da sua participação';
+          ? 'Essa nota já foi registrada antes'
+          : 'Aguarde alguns minutos para a validação da sua participação';
         showResult(true, data.accessKey || chaveOuUrl, msg);
       } else if (data.status === 'INVALID') {
-        showResult(false, null, data.message || 'chave de acesso inválida');
+        showResult(false, null, data.message || 'Chave de acesso inválida');
       } else {
-        showResult(false, null, data.message || data.error || 'erro ao enviar. tente novamente');
+        showResult(false, null, data.message || data.error || 'Erro ao enviar. Tente novamente');
       }
     }).catch(function(err) {
       isSubmitting = false;
       console.error('erro no submit:', err);
-      showResult(false, null, 'erro de conexão. verifique sua internet e tente novamente');
+      showResult(false, null, 'Erro de conexão. Verifique sua internet e tente novamente');
     });
   }
 
   function onScanSuccess(decodedText) {
-    if (isSubmitting) return;
+    if (isSubmitting || isExpired) return;
     var chave = extractChaveFromQR(decodedText);
     if (chave && isValidChaveAcesso(chave)) {
       stopScanner();
@@ -566,17 +652,17 @@
 
   function showCameraError(msg) {
     spinner.style.display = 'none';
-    placeholderText.innerHTML = '<div class="qr-icon" style="margin: 0 auto 16px;"></div>câmera não iniciou<br><span style="font-size:12px;color:#666">' + msg + '</span>';
+    placeholderText.innerHTML = '<div class="qr-icon" style="margin: 0 auto 16px;"></div>Câmera não iniciou<br><span style="font-size:12px;color:#666">' + msg + '</span>';
     errorBanner.classList.add('show');
     errorBanner.textContent = msg;
     startBtn.classList.remove('btn-hidden');
   }
 
   function startScanner() {
-    if (isScanning) return;
+    if (isScanning || isExpired) return;
     errorBanner.classList.remove('show');
     spinner.style.display = '';
-    placeholderText.textContent = 'iniciando câmera...';
+    placeholderText.textContent = 'Iniciando câmera...';
     startBtn.classList.add('btn-hidden');
 
     if (!scanner) {
@@ -605,15 +691,15 @@
       errorBanner.classList.remove('show');
     }).catch(function(err) {
       console.error("Erro ao iniciar câmera:", err);
-      var msg = 'toque em "iniciar câmera" para autorizar';
+      var msg = 'Toque em "Iniciar câmera" para autorizar';
       if (err && err.toString) {
         var errStr = err.toString().toLowerCase();
         if (errStr.indexOf('permission') !== -1 || errStr.indexOf('denied') !== -1) {
-          msg = 'permissão negada. autorize a câmera nas configurações do navegador';
+          msg = 'Permissão negada. Autorize a câmera nas configurações do navegador';
         } else if (errStr.indexOf('notfound') !== -1) {
-          msg = 'câmera não encontrada neste dispositivo';
+          msg = 'Câmera não encontrada neste dispositivo';
         } else if (errStr.indexOf('https') !== -1 || errStr.indexOf('secure') !== -1) {
-          msg = 'esta página precisa estar em https';
+          msg = 'Esta página precisa estar em HTTPS';
         }
       }
       showCameraError(msg);
@@ -631,12 +717,17 @@
     });
   }
 
-  startBtn.addEventListener('click', startScanner);
+  startBtn.addEventListener('click', function() {
+    if (!isExpired) startScanner();
+  });
 
   manualBtn.addEventListener('click', function() {
+    if (isExpired) return;
     manualModal.classList.add('open');
     setTimeout(function() { keyInput.focus(); }, 100);
   });
+
+  expiredWhatsappBtn.addEventListener('click', openWhatsApp);
 
   cancelKeyBtn.addEventListener('click', function() {
     manualModal.classList.remove('open');
@@ -688,7 +779,10 @@
   });
 
   window.addEventListener('load', function() {
-    setTimeout(startScanner, 300);
+    setupExpiration();
+    if (!isExpired) {
+      setTimeout(startScanner, 300);
+    }
   });
 </script>
 
