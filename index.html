@@ -658,6 +658,99 @@
     startBtn.classList.remove('btn-hidden');
   }
 
+  // ===== LEITOR NATIVO (BarcodeDetector) =====
+  // Usa o motor de leitura do sistema operacional, igual ao app da câmera.
+  // Muito mais rápido e preciso que bibliotecas JS. Cai no fallback se indisponível.
+  var nativeVideo = null;
+  var nativeStream = null;
+  var nativeRaf = null;
+  var nativeDetector = null;
+
+  function tentarDetectorNativo() {
+    // BarcodeDetector só existe em navegadores modernos (Chrome Android, alguns)
+    if (typeof window.BarcodeDetector === 'undefined') {
+      return false;
+    }
+
+    iniciarDetectorNativo();
+    return true;
+  }
+
+  function iniciarDetectorNativo() {
+    var reader = document.getElementById('reader');
+
+    // Cria o elemento de vídeo se ainda não existe
+    if (!nativeVideo) {
+      nativeVideo = document.createElement('video');
+      nativeVideo.setAttribute('playsinline', 'true');
+      nativeVideo.setAttribute('muted', 'true');
+      nativeVideo.style.width = '100%';
+      nativeVideo.style.height = '100%';
+      nativeVideo.style.objectFit = 'cover';
+      reader.appendChild(nativeVideo);
+    }
+
+    try {
+      nativeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+    } catch (e) {
+      console.warn('BarcodeDetector falhou, usando fallback', e);
+      return startScannerFallback();
+    }
+
+    // Pede a câmera traseira em alta resolução, com foco contínuo
+    navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        focusMode: 'continuous',
+        advanced: [{ focusMode: 'continuous' }]
+      }
+    }).then(function(stream) {
+      nativeStream = stream;
+      nativeVideo.srcObject = stream;
+      return nativeVideo.play();
+    }).then(function() {
+      isScanning = true;
+      scannerWrapper.classList.add('scanning');
+      placeholder.classList.add('hidden');
+      startBtn.classList.add('btn-hidden');
+      errorBanner.classList.remove('show');
+      loopDetectorNativo();
+    }).catch(function(err) {
+      console.error('erro camera nativa:', err);
+      // Se a câmera nativa falhar, tenta o fallback html5-qrcode
+      pararDetectorNativo();
+      startScannerFallback();
+    });
+  }
+
+  function loopDetectorNativo() {
+    if (!isScanning || isExpired || isSubmitting) return;
+
+    nativeDetector.detect(nativeVideo).then(function(codes) {
+      if (codes && codes.length > 0) {
+        onScanSuccess(codes[0].rawValue);
+      }
+    }).catch(function() {
+      // ignora erros de frame individual
+    }).finally(function() {
+      if (isScanning && !isSubmitting) {
+        nativeRaf = requestAnimationFrame(loopDetectorNativo);
+      }
+    });
+  }
+
+  function pararDetectorNativo() {
+    if (nativeRaf) { cancelAnimationFrame(nativeRaf); nativeRaf = null; }
+    if (nativeStream) {
+      nativeStream.getTracks().forEach(function(t) { t.stop(); });
+      nativeStream = null;
+    }
+    isScanning = false;
+  }
+
   function startScanner() {
     if (isScanning || isExpired) return;
     errorBanner.classList.remove('show');
@@ -665,18 +758,48 @@
     placeholderText.textContent = 'Iniciando câmera...';
     startBtn.classList.add('btn-hidden');
 
+    // Tenta primeiro o leitor NATIVO do navegador (BarcodeDetector),
+    // que usa o mesmo motor do sistema operacional, igual ao app da câmera.
+    if (tentarDetectorNativo()) {
+      return;
+    }
+
+    // Sem suporte nativo: usa o html5-qrcode otimizado
+    startScannerFallback();
+  }
+
+  function startScannerFallback() {
+    if (isScanning || isExpired) return;
+    spinner.style.display = '';
+    startBtn.classList.add('btn-hidden');
+
+    // Fallback: html5-qrcode com configuração otimizada
     if (!scanner) {
-      scanner = new Html5Qrcode("reader", { verbose: false });
+      scanner = new Html5Qrcode("reader", {
+        verbose: false,
+        // Suporta só QR code (mais rápido, não procura outros formatos)
+        formatsToSupport: [0],
+        // Usa o BarcodeDetector nativo por baixo se o html5-qrcode detectar
+        useBarCodeDetectorIfSupported: true
+      });
     }
     var config = {
-      fps: 10,
+      fps: 25,
       qrbox: function(viewfinderWidth, viewfinderHeight) {
         var minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-        var size = Math.floor(minEdge * 0.7);
+        var size = Math.floor(minEdge * 0.8);
         return { width: size, height: size };
       },
       aspectRatio: 1.0,
-      disableFlip: false
+      disableFlip: false,
+      // Pede resolução alta e foco contínuo da câmera (chave para ler QR pequeno)
+      videoConstraints: {
+        facingMode: "environment",
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        focusMode: "continuous",
+        advanced: [{ focusMode: "continuous" }]
+      }
     };
     scanner.start(
       { facingMode: "environment" },
@@ -707,6 +830,13 @@
   }
 
   function stopScanner() {
+    // Para o detector nativo, se estiver ativo
+    if (nativeStream) {
+      pararDetectorNativo();
+      scannerWrapper.classList.remove('scanning');
+      placeholder.classList.remove('hidden');
+      return;
+    }
     if (!isScanning || !scanner) return;
     scanner.stop().then(function() {
       isScanning = false;
