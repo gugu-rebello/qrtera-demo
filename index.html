@@ -213,6 +213,14 @@
   .key-input:focus { outline: none; border-color: #FF6600; }
   .key-counter { font-size: 11px; color: #666; text-align: right; margin-bottom: 16px; }
   .key-counter.valid { color: #4ade80; }
+  .key-error {
+    font-size: 13px;
+    color: #f87171;
+    line-height: 1.5;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .key-error.show { display: block; }
   .result {
     position: fixed;
     inset: 0;
@@ -355,7 +363,7 @@
       type="tel"
       inputmode="numeric"
       pattern="[0-9]*"
-      maxlength="44"
+      maxlength="64"
       class="key-input"
       id="keyInput"
       name="nfeKey"
@@ -366,6 +374,7 @@
       data-1p-ignore="true"
       aria-autocomplete="none">
     <div class="key-counter" id="keyCounter">0 / 44</div>
+    <div class="key-error" id="keyError"></div>
     <button class="btn btn-primary" id="submitKeyBtn">Enviar</button>
     <div style="height: 8px;"></div>
     <button class="btn" id="cancelKeyBtn">Cancelar</button>
@@ -447,6 +456,7 @@
   var manualModal = document.getElementById('manualModal');
   var keyInput = document.getElementById('keyInput');
   var keyCounter = document.getElementById('keyCounter');
+  var keyError = document.getElementById('keyError');
   var submitKeyBtn = document.getElementById('submitKeyBtn');
   var cancelKeyBtn = document.getElementById('cancelKeyBtn');
   var resultScreen = document.getElementById('resultScreen');
@@ -610,15 +620,25 @@
       wa: USER_PHONE || WHATSAPP_NUMBER
     };
 
+    // Timeout de rede: sem isso, um backend lento prende a tela em "Enviando..." para sempre.
+    var controller = new AbortController();
+    var timedOut = false;
+    var timeoutId = setTimeout(function() {
+      timedOut = true;
+      controller.abort();
+    }, 25000);
+
     fetch(BACKEND_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: controller.signal
     }).then(function(resp) {
       return resp.json().then(function(data) {
         return { ok: resp.ok, data: data };
       });
     }).then(function(result) {
+      clearTimeout(timeoutId);
       isSubmitting = false;
       var data = result.data;
       if (result.ok && (data.status === 'RECEIVED' || data.status === 'DUPLICATED')) {
@@ -632,9 +652,14 @@
         showResult(false, null, data.message || data.error || 'Erro ao enviar. Tente novamente');
       }
     }).catch(function(err) {
+      clearTimeout(timeoutId);
       isSubmitting = false;
       console.error('erro no submit:', err);
-      showResult(false, null, 'Erro de conexão. Verifique sua internet e tente novamente');
+      if (timedOut) {
+        showResult(false, null, 'A conexão demorou demais. Verifique sua internet e toque em Tentar novamente.');
+      } else {
+        showResult(false, null, 'Erro de conexão. Verifique sua internet e tente novamente');
+      }
     });
   }
 
@@ -721,8 +746,24 @@
     if (!isExpired) startScanner();
   });
 
+  function showKeyError(msg) {
+    keyError.textContent = msg;
+    keyError.classList.add('show');
+  }
+
+  function hideKeyError() {
+    keyError.classList.remove('show');
+    keyError.textContent = '';
+  }
+
+  function flashInput() {
+    keyInput.style.borderColor = '#f87171';
+    setTimeout(function() { keyInput.style.borderColor = ''; }, 1500);
+  }
+
   manualBtn.addEventListener('click', function() {
     if (isExpired) return;
+    hideKeyError();
     manualModal.classList.add('open');
     setTimeout(function() { keyInput.focus(); }, 100);
   });
@@ -732,6 +773,7 @@
   cancelKeyBtn.addEventListener('click', function() {
     manualModal.classList.remove('open');
     keyInput.value = '';
+    hideKeyError();
     updateKeyCounter();
   });
 
@@ -748,16 +790,23 @@
   keyInput.addEventListener('input', function(e) {
     var clean = e.target.value.replace(/\D/g, '').substring(0, 44);
     e.target.value = clean;
+    hideKeyError();
     updateKeyCounter();
   });
 
   submitKeyBtn.addEventListener('click', function() {
     var chave = keyInput.value.replace(/\D/g, '');
-    if (chave.length !== 44 || !isValidChaveAcesso(chave)) {
-      keyInput.style.borderColor = '#f87171';
-      setTimeout(function() { keyInput.style.borderColor = ''; }, 1500);
+    if (chave.length !== 44) {
+      showKeyError('Faltam números: a chave tem 44 dígitos e você digitou ' + chave.length + '. Confira os números embaixo do QR code. Para voltar, toque em Cancelar.');
+      flashInput();
       return;
     }
+    if (!isValidChaveAcesso(chave)) {
+      showKeyError('Essa chave não parece válida. Confira se não trocou ou pulou algum número (são os 44 dígitos logo abaixo do QR code). Para voltar, toque em Cancelar.');
+      flashInput();
+      return;
+    }
+    hideKeyError();
     manualModal.classList.remove('open');
     keyInput.value = '';
     updateKeyCounter();
