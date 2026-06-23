@@ -209,6 +209,7 @@
     font-family: ui-monospace, "SF Mono", Menlo, monospace;
     margin-bottom: 8px;
     letter-spacing: 0.5px;
+    text-transform: uppercase;
   }
   .key-input:focus { outline: none; border-color: #FF6600; }
   .key-counter { font-size: 11px; color: #666; text-align: right; margin-bottom: 16px; }
@@ -222,6 +223,19 @@
   }
   .key-error.show { display: block; }
   .key-error.valida { color: #4ade80; }
+  .key-toggle {
+    background: none;
+    border: none;
+    color: #FF6600;
+    font-size: 13px;
+    font-family: inherit;
+    padding: 2px 0 14px;
+    cursor: pointer;
+    display: block;
+    text-align: left;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .key-toggle.ativo { color: #888; }
   .result {
     position: fixed;
     inset: 0;
@@ -359,11 +373,12 @@
 <div class="modal" id="manualModal">
   <div class="modal-content">
     <div class="modal-title">Digitar chave de acesso</div>
-    <div class="modal-subtitle">Os 44 dígitos que ficam logo abaixo do QR code, na parte de baixo da nota</div>
+    <div class="modal-subtitle">Os 44 caracteres logo abaixo do QR code, na parte de baixo da nota. Quase sempre são números; notas de empresas com CNPJ novo podem ter letras.</div>
     <input
       type="tel"
       inputmode="numeric"
-      pattern="[0-9]*"
+      autocorrect="off"
+      spellcheck="false"
       maxlength="64"
       class="key-input"
       id="keyInput"
@@ -375,6 +390,7 @@
       data-1p-ignore="true"
       aria-autocomplete="none">
     <div class="key-counter" id="keyCounter">0 / 44</div>
+    <button type="button" class="key-toggle" id="toggleTeclado">Aa  Minha chave tem letras (CNPJ novo)</button>
     <div class="key-error" id="keyError"></div>
     <button class="btn btn-primary" id="submitKeyBtn">Enviar</button>
     <div style="height: 8px;"></div>
@@ -446,6 +462,7 @@
   var isSubmitting = false;
   var isExpired = false;
   var expirationTimeout = null;
+  var modoLetras = false;
 
   var startBtn = document.getElementById('startBtn');
   var manualBtn = document.getElementById('manualBtn');
@@ -458,6 +475,7 @@
   var keyInput = document.getElementById('keyInput');
   var keyCounter = document.getElementById('keyCounter');
   var keyError = document.getElementById('keyError');
+  var toggleTeclado = document.getElementById('toggleTeclado');
   var submitKeyBtn = document.getElementById('submitKeyBtn');
   var cancelKeyBtn = document.getElementById('cancelKeyBtn');
   var resultScreen = document.getElementById('resultScreen');
@@ -473,45 +491,62 @@
   var expiredWhatsappBtn = document.getElementById('expiredWhatsappBtn');
   var closingScreen = document.getElementById('closingScreen');
 
+  // Normaliza a chave digitada: maiúsculas, só [0-9A-Z], no máximo 44.
+  // (A chave pode conter LETRAS quando o emitente tem CNPJ novo alfanumérico.)
+  function soChaveValida(str) {
+    return String(str || '').toUpperCase().replace(/[^0-9A-Z]/g, '').substring(0, 44);
+  }
+
+  // Valor numérico de um caractere para o módulo 11: código ASCII menos 48.
+  // '0'..'9' -> 0..9; 'A'..'Z' -> 17..42. É a regra do CNPJ/chave alfanumérica
+  // (padrão Serpro/Receita) e é retrocompatível com o cálculo numérico antigo.
+  function valChar(c) { return c.charCodeAt(0) - 48; }
+
   function isValidChaveAcesso(str) {
-    var clean = str.replace(/\D/g, '');
+    var clean = soChaveValida(str);
     if (clean.length !== 44) return false;
-    var uf = clean.substring(0, 2);
-    var ufNum = parseInt(uf, 10);
+    // UF (1º-2º) é sempre numérica
+    if (!/^[0-9]{2}$/.test(clean.substring(0, 2))) return false;
+    var ufNum = parseInt(clean.substring(0, 2), 10);
     if (ufNum < 11 || ufNum > 53) return false;
+    // Modelo (21º-22º) é sempre numérico, 55 ou 65
     var modelo = clean.substring(20, 22);
     if (modelo !== '55' && modelo !== '65') return false;
     return validateDV(clean);
   }
 
+  // DV da chave de acesso (44º caractere): módulo 11 sobre os 43 primeiros, pesos 2..9.
+  // Usa valChar para aceitar letras (CNPJ alfanumérico); idêntico ao numérico para chaves
+  // só com dígitos. O DV em si é sempre numérico.
   function validateDV(chave) {
     var sum = 0;
     var weight = 2;
     for (var i = 42; i >= 0; i--) {
-      sum += parseInt(chave.charAt(i), 10) * weight;
+      sum += valChar(chave.charAt(i)) * weight;
       weight++;
       if (weight > 9) weight = 2;
     }
     var remainder = sum % 11;
     var dv = (remainder < 2) ? 0 : 11 - remainder;
-    return dv === parseInt(chave.charAt(43), 10);
+    return dv === valChar(chave.charAt(43));
   }
 
-  // Valida o CNPJ (14 dígitos) pelos seus 2 dígitos verificadores (módulo 11).
-  // O CNPJ do emitente fica embutido na chave de acesso (7º ao 20º dígito).
+  // Valida o CNPJ (14 caracteres) embutido na chave (7º ao 20º) pelos seus 2 dígitos
+  // verificadores (módulo 11). Aceita CNPJ NUMÉRICO e o NOVO CNPJ ALFANUMÉRICO:
+  // os 12 primeiros podem ser letras/números, os 2 últimos (DV) são sempre numéricos.
+  // Mesma máquina de cálculo, via valChar. Verificado com o exemplo oficial 12.ABC.345/01DE-35.
   function cnpjDVok(cnpj) {
-    if (!/^\d{14}$/.test(cnpj)) return false;
-    var n = cnpj.split('').map(function(c) { return parseInt(c, 10); });
+    if (!/^[0-9A-Z]{12}[0-9]{2}$/.test(cnpj)) return false;
     function dv(len) {
       var pesos = (len === 12)
         ? [5,4,3,2,9,8,7,6,5,4,3,2]
         : [6,5,4,3,2,9,8,7,6,5,4,3,2];
       var s = 0;
-      for (var i = 0; i < len; i++) s += n[i] * pesos[i];
+      for (var i = 0; i < len; i++) s += valChar(cnpj.charAt(i)) * pesos[i];
       var r = s % 11;
       return (r < 2) ? 0 : 11 - r;
     }
-    return dv(12) === n[12] && dv(13) === n[13];
+    return dv(12) === valChar(cnpj.charAt(12)) && dv(13) === valChar(cnpj.charAt(13));
   }
 
   // Diagnóstico progressivo: olha só o que já dá para checar com os dígitos digitados
@@ -520,14 +555,16 @@
   // Estrutura da chave: UF(2) AAMM(4) CNPJ(14) modelo(2) série(3) nNF(9) tpEmis(1) cNF(8) DV(1).
   function diagnosticarChave(clean) {
     if (clean.length >= 2) {
-      var uf = parseInt(clean.substring(0, 2), 10);
-      if (uf < 11 || uf > 53) {
-        return { status: 'erro', msg: 'Os 2 primeiros números (código do estado) não existem. Confira o começo da chave.' };
+      // UF é sempre numérica (1º-2º). Letra aqui já é erro.
+      if (!/^[0-9]{2}$/.test(clean.substring(0, 2)) ||
+          parseInt(clean.substring(0, 2), 10) < 11 ||
+          parseInt(clean.substring(0, 2), 10) > 53) {
+        return { status: 'erro', msg: 'Os 2 primeiros números (código do estado) não parecem certos. Confira o começo da chave.' };
       }
     }
     if (clean.length >= 20) {
       if (!cnpjDVok(clean.substring(6, 20))) {
-        return { status: 'erro', msg: 'O CNPJ dentro da chave (do 7º ao 20º número) parece ter um número trocado. Confira esse trecho.' };
+        return { status: 'erro', msg: 'O CNPJ dentro da chave (do 7º ao 20º caractere) parece ter um número ou letra trocado. Confira esse trecho.' };
       }
     }
     if (clean.length >= 22) {
@@ -538,7 +575,7 @@
     }
     if (clean.length === 44) {
       if (!validateDV(clean)) {
-        return { status: 'erro', msg: 'O dígito final não fecha (algum número foi trocado ou pulado). Confira a chave inteira.' };
+        return { status: 'erro', msg: 'O dígito final não fecha (algum caractere foi trocado ou pulado). Confira a chave inteira.' };
       }
       return { status: 'valida', msg: 'Chave válida! É só enviar. ✓' };
     }
@@ -825,9 +862,37 @@
     setTimeout(function() { keyInput.style.borderColor = ''; }, 1500);
   }
 
+  // Teclado numérico por padrão (a maioria das chaves é só número). O botão troca para
+  // o teclado de texto quando a chave tem letras (emitente com CNPJ novo alfanumérico).
+  function aplicarModoTeclado() {
+    if (modoLetras) {
+      keyInput.setAttribute('type', 'text');
+      keyInput.setAttribute('inputmode', 'text');
+      keyInput.setAttribute('autocapitalize', 'characters');
+      toggleTeclado.textContent = '123  Voltar ao teclado de números';
+      toggleTeclado.classList.add('ativo');
+    } else {
+      keyInput.setAttribute('type', 'tel');
+      keyInput.setAttribute('inputmode', 'numeric');
+      keyInput.setAttribute('autocapitalize', 'off');
+      toggleTeclado.textContent = 'Aa  Minha chave tem letras (CNPJ novo)';
+      toggleTeclado.classList.remove('ativo');
+    }
+  }
+
+  toggleTeclado.addEventListener('click', function() {
+    modoLetras = !modoLetras;
+    aplicarModoTeclado();
+    // blur + focus força o teclado do celular a reabrir no novo modo
+    keyInput.blur();
+    setTimeout(function() { keyInput.focus(); }, 60);
+  });
+
   manualBtn.addEventListener('click', function() {
     if (isExpired) return;
     hideKeyError();
+    modoLetras = false;
+    aplicarModoTeclado();
     manualModal.classList.add('open');
     setTimeout(function() { keyInput.focus(); }, 100);
   });
@@ -842,7 +907,7 @@
   });
 
   function updateKeyCounter() {
-    var len = keyInput.value.replace(/\D/g, '').length;
+    var len = soChaveValida(keyInput.value).length;
     keyCounter.textContent = len + ' / 44';
     if (len === 44) {
       keyCounter.classList.add('valid');
@@ -853,18 +918,17 @@
 
   keyInput.addEventListener('input', function(e) {
     var el = e.target;
-    // Quantos dígitos existiam antes do cursor, para reposicioná-lo após formatar.
+    // Quantos caracteres válidos existiam antes do cursor, para reposicioná-lo após formatar.
     var posCursor = el.selectionStart;
-    var digitosAntes = el.value.substring(0, posCursor).replace(/\D/g, '').length;
-    var clean = el.value.replace(/\D/g, '').substring(0, 44);
-    // Formata em blocos de 4 (igual a chave vem impressa na nota).
-    var formatado = clean.replace(/(\d{4})(?=\d)/g, '$1 ');
+    var charsAntes = soChaveValida(el.value.substring(0, posCursor)).length;
+    var clean = soChaveValida(el.value);
+    // Formata em blocos de 4 (igual a chave vem impressa na nota), aceitando letras.
+    var formatado = clean.replace(/(.{4})(?=.)/g, '$1 ');
     el.value = formatado;
-    // Recoloca o cursor após a mesma quantidade de dígitos.
+    // Recoloca o cursor após a mesma quantidade de caracteres (ignora os espaços).
     var novaPos = 0, cont = 0;
-    while (novaPos < formatado.length && cont < digitosAntes) {
-      var cc = formatado.charCodeAt(novaPos);
-      if (cc >= 48 && cc <= 57) cont++;
+    while (novaPos < formatado.length && cont < charsAntes) {
+      if (formatado.charAt(novaPos) !== ' ') cont++;
       novaPos++;
     }
     try { el.setSelectionRange(novaPos, novaPos); } catch (err) {}
@@ -873,9 +937,9 @@
   });
 
   submitKeyBtn.addEventListener('click', function() {
-    var chave = keyInput.value.replace(/\D/g, '');
+    var chave = soChaveValida(keyInput.value);
     if (chave.length !== 44) {
-      showKeyError('Faltam números: a chave tem 44 dígitos e você digitou ' + chave.length + '. Confira os números embaixo do QR code. Para voltar, toque em Cancelar.', 'erro');
+      showKeyError('Faltam caracteres: a chave tem 44 e você digitou ' + chave.length + '. Confira os números (e letras, se houver) embaixo do QR code. Para voltar, toque em Cancelar.', 'erro');
       flashInput();
       return;
     }
