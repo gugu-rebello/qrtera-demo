@@ -221,6 +221,7 @@
     display: none;
   }
   .key-error.show { display: block; }
+  .key-error.valida { color: #4ade80; }
   .result {
     position: fixed;
     inset: 0;
@@ -496,6 +497,54 @@
     return dv === parseInt(chave.charAt(43), 10);
   }
 
+  // Valida o CNPJ (14 dígitos) pelos seus 2 dígitos verificadores (módulo 11).
+  // O CNPJ do emitente fica embutido na chave de acesso (7º ao 20º dígito).
+  function cnpjDVok(cnpj) {
+    if (!/^\d{14}$/.test(cnpj)) return false;
+    var n = cnpj.split('').map(function(c) { return parseInt(c, 10); });
+    function dv(len) {
+      var pesos = (len === 12)
+        ? [5,4,3,2,9,8,7,6,5,4,3,2]
+        : [6,5,4,3,2,9,8,7,6,5,4,3,2];
+      var s = 0;
+      for (var i = 0; i < len; i++) s += n[i] * pesos[i];
+      var r = s % 11;
+      return (r < 2) ? 0 : 11 - r;
+    }
+    return dv(12) === n[12] && dv(13) === n[13];
+  }
+
+  // Diagnóstico progressivo: olha só o que já dá para checar com os dígitos digitados
+  // até agora e devolve o PRIMEIRO problema encontrado, para avisar antes dos 44.
+  // status: 'ok' (nada errado até aqui), 'erro' (achou problema), 'valida' (44 e tudo certo).
+  // Estrutura da chave: UF(2) AAMM(4) CNPJ(14) modelo(2) série(3) nNF(9) tpEmis(1) cNF(8) DV(1).
+  function diagnosticarChave(clean) {
+    if (clean.length >= 2) {
+      var uf = parseInt(clean.substring(0, 2), 10);
+      if (uf < 11 || uf > 53) {
+        return { status: 'erro', msg: 'Os 2 primeiros números (código do estado) não existem. Confira o começo da chave.' };
+      }
+    }
+    if (clean.length >= 20) {
+      if (!cnpjDVok(clean.substring(6, 20))) {
+        return { status: 'erro', msg: 'O CNPJ dentro da chave (do 7º ao 20º número) parece ter um número trocado. Confira esse trecho.' };
+      }
+    }
+    if (clean.length >= 22) {
+      var modelo = clean.substring(20, 22);
+      if (modelo !== '55' && modelo !== '65') {
+        return { status: 'erro', msg: 'O tipo da nota (21º e 22º números) deveria ser 55 ou 65. Confira esses dois.' };
+      }
+    }
+    if (clean.length === 44) {
+      if (!validateDV(clean)) {
+        return { status: 'erro', msg: 'O dígito final não fecha (algum número foi trocado ou pulado). Confira a chave inteira.' };
+      }
+      return { status: 'valida', msg: 'Chave válida! É só enviar. ✓' };
+    }
+    return { status: 'ok', msg: '' };
+  }
+
   function extractChaveFromQR(decodedText) {
     var match = decodedText.match(/\d{44}/);
     if (match) return match[0];
@@ -746,14 +795,29 @@
     if (!isExpired) startScanner();
   });
 
-  function showKeyError(msg) {
+  function showKeyError(msg, tipo) {
     keyError.textContent = msg;
+    keyError.classList.remove('valida');
+    if (tipo === 'valida') keyError.classList.add('valida');
     keyError.classList.add('show');
   }
 
   function hideKeyError() {
     keyError.classList.remove('show');
+    keyError.classList.remove('valida');
     keyError.textContent = '';
+  }
+
+  // Atualiza o feedback ao vivo conforme digita (erro estrutural cedo ou "válida" no fim).
+  function atualizarFeedback(clean) {
+    var d = diagnosticarChave(clean);
+    if (d.status === 'erro') {
+      showKeyError(d.msg, 'erro');
+    } else if (d.status === 'valida') {
+      showKeyError(d.msg, 'valida');
+    } else {
+      hideKeyError();
+    }
   }
 
   function flashInput() {
@@ -788,21 +852,36 @@
   }
 
   keyInput.addEventListener('input', function(e) {
-    var clean = e.target.value.replace(/\D/g, '').substring(0, 44);
-    e.target.value = clean;
-    hideKeyError();
+    var el = e.target;
+    // Quantos dígitos existiam antes do cursor, para reposicioná-lo após formatar.
+    var posCursor = el.selectionStart;
+    var digitosAntes = el.value.substring(0, posCursor).replace(/\D/g, '').length;
+    var clean = el.value.replace(/\D/g, '').substring(0, 44);
+    // Formata em blocos de 4 (igual a chave vem impressa na nota).
+    var formatado = clean.replace(/(\d{4})(?=\d)/g, '$1 ');
+    el.value = formatado;
+    // Recoloca o cursor após a mesma quantidade de dígitos.
+    var novaPos = 0, cont = 0;
+    while (novaPos < formatado.length && cont < digitosAntes) {
+      var cc = formatado.charCodeAt(novaPos);
+      if (cc >= 48 && cc <= 57) cont++;
+      novaPos++;
+    }
+    try { el.setSelectionRange(novaPos, novaPos); } catch (err) {}
     updateKeyCounter();
+    atualizarFeedback(clean);
   });
 
   submitKeyBtn.addEventListener('click', function() {
     var chave = keyInput.value.replace(/\D/g, '');
     if (chave.length !== 44) {
-      showKeyError('Faltam números: a chave tem 44 dígitos e você digitou ' + chave.length + '. Confira os números embaixo do QR code. Para voltar, toque em Cancelar.');
+      showKeyError('Faltam números: a chave tem 44 dígitos e você digitou ' + chave.length + '. Confira os números embaixo do QR code. Para voltar, toque em Cancelar.', 'erro');
       flashInput();
       return;
     }
-    if (!isValidChaveAcesso(chave)) {
-      showKeyError('Essa chave não parece válida. Confira se não trocou ou pulou algum número (são os 44 dígitos logo abaixo do QR code). Para voltar, toque em Cancelar.');
+    var d = diagnosticarChave(chave);
+    if (d.status !== 'valida') {
+      showKeyError((d.msg || 'Essa chave não parece válida. Confira os 44 números.') + ' Para voltar, toque em Cancelar.', 'erro');
       flashInput();
       return;
     }
