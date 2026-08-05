@@ -373,7 +373,7 @@
 <div class="modal" id="manualModal">
   <div class="modal-content">
     <div class="modal-title">Digitar chave de acesso</div>
-    <div class="modal-subtitle">Os 44 caracteres logo abaixo do QR code, na parte de baixo da nota. Quase sempre são números; notas de empresas com CNPJ novo podem ter letras.</div>
+    <div class="modal-subtitle">Os 44 caracteres logo acima do QR code. Quase sempre são números; notas de empresas com CNPJ novo podem ter letras.</div>
     <input
       type="tel"
       inputmode="numeric"
@@ -939,7 +939,7 @@
   submitKeyBtn.addEventListener('click', function() {
     var chave = soChaveValida(keyInput.value);
     if (chave.length !== 44) {
-      showKeyError('Faltam caracteres: a chave tem 44 e você digitou ' + chave.length + '. Confira os números (e letras, se houver) embaixo do QR code. Para voltar, toque em Cancelar.', 'erro');
+      showKeyError('Faltam caracteres: a chave tem 44 e você digitou ' + chave.length + '. Confira os números (e letras, se houver) logo acima do QR code. Para voltar, toque em Cancelar.', 'erro');
       flashInput();
       return;
     }
